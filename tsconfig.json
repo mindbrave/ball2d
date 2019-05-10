@@ -1,0 +1,22 @@
+{
+    "compilerOptions": {
+        "esModuleInterop": true,
+        "module": "commonjs",
+        "moduleResolution": "node",
+        "outDir": "./dist/",
+        "target": "es5",
+        "lib": ["es7", "es2017", "dom"],
+        "sourceRoot": "./main.ts",
+        "sourceMap": true,
+        "allowJs": true,
+        "strict": true,
+        "noImplicitAny": true,
+        "noImplicitReturns": true,
+        "noImplicitThis": true,
+        "noEmitOnError": true,
+        "noUnusedLocals": false,
+        "strictFunctionTypes": true,
+        "strictPropertyInitialization": true,
+        "strictNullChecks": true
+    }
+}
