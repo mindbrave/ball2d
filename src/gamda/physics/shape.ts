@@ -17,6 +17,7 @@ export type Sphere = {
     type: ShapeType.Sphere,
     radius: Meters,
 }
+export type Circle = Sphere;
 
 export type Triangle = {
     type: ShapeType.Triangle,

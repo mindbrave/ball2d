@@ -33,6 +33,7 @@
     "@types/ramda": "^0.26.6",
     "babylonjs": "^3.3.0",
     "babylonjs-materials": "^3.3.0",
+    "earcut": "^2.1.5",
     "immutable": "^4.0.0-rc.12",
     "mathjs": "^5.8.0",
     "pixi.js": "^4.8.4",

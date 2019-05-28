@@ -3,9 +3,9 @@ import { isEmpty, head, sortBy, isNil, curry, evolve, concat, map } from "ramda"
 
 import { EntityKind, Entity, Entities, setEntity, mapEntitiesWithTrait, updateEntity, entitiesList, setManyEntities, EntityId, getEntity } from "./entities";
 import { Map } from "immutable";
-import { sphereBounceOfSphere, sphereBounceOfStaticTriangle } from "./physics/collisions/resolve";
+import { sphereBounceOfSphere, circleBounceOfStaticSegment } from "./physics/collisions/resolve";
 import { Seconds, MetersPerSquaredSecond, Meters } from "./physics/units";
-import { Body, isSphere, isTriangle } from "./physics/body";
+import { Body, isSphere, isTriangle, isSegment } from "./physics/body";
 import { Maybe } from "./maybe";
 import { sub, lte, pow2 } from "uom-ts";
 import { move, applyDampening, setZeroVelocity, applyGravity } from "./physics/motion";
@@ -60,7 +60,13 @@ export const moveEntitiesWithCollisions = curry((duration: Seconds, events: Game
     const [entitiesAfterCollision, eventsAfterCollision] = pipeWithEvents(
         movedEntities,
         applyContactEffectsAgainstEntity(entity1, entity2, collision),
-        applyContactEffectsAgainstEntity(entity2, entity1, collision)
+        applyContactEffectsAgainstEntity(entity2, entity1, {
+            ...collision,
+            bodyCollision: {
+                    ...collision.bodyCollision,
+                contactPoints: [collision.bodyCollision.contactPoints[1], collision.bodyCollision.contactPoints[0]]
+            }
+        })
     );
 
     return moveEntitiesWithCollisions(sub(duration, collision.bodyCollision.timeToImpact), concat(events, eventsAfterCollision), entitiesAfterCollision);
@@ -154,9 +160,9 @@ export const bounceAgainstStatic: OnCollision = (collision, entityA, entityB, en
     const partB = entityB.body.parts[collision.bodyCollision.betweenBodyParts[1]];
     entityA = isSphere(partA) ?
         (
-            isTriangle(partB) ? ({...entityA, body: sphereBounceOfStaticTriangle(entityA.body, partA, entityB.body, partB)}) :
+            isSegment(partB) ? ({...entityA, body: circleBounceOfStaticSegment(entityA.body, partA, entityB.body, partB, collision.bodyCollision)}) :
             entityA
-        ) : isTriangle(partA) ?
+        ) : isSegment(partA) ?
         (
             entityA
         )

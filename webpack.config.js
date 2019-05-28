@@ -38,7 +38,6 @@ module.exports = {
     },
     externals: {
         "oimo": true,
-        "cannon": true,
-        "earcut": true
+        "cannon": true
     },
 };

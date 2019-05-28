@@ -5,10 +5,10 @@ import { expect } from "chai";
 import * as sinon from "sinon";
 
 import { vec, Vec, zeroVector } from "../vectors";
-import { entitiesList, Entity, storeEntity } from "../entities";
+import { entitiesList, Entity, storeEntity, EntityId } from "../entities";
 import { thatIsPhysical, givenEntity, thatOnCollisionWithEntity, emptyEntities, withBody, thatCollidesWithEntities, thatDoesNotCollideWithEntities } from "./fixtures/entities";
-import { Physical, bounce, moveEntitiesWithCollisions, block, OnCollision } from "../entitiesPhysics";
-import { sphereShaped, atPosition, withVelocity } from "./fixtures/body";
+import { Physical, bounce, moveEntitiesWithCollisions, block, OnCollision, bounceAgainstStatic } from "../entitiesPhysics";
+import { sphereShaped, atPosition, withVelocity, segmentShaped, withZeroVelocity, circleShaped } from "./fixtures/body";
 import { Meters, MetersPerSecond, Seconds } from "../physics/units";
 
 /** 
@@ -374,6 +374,217 @@ describe("test moving, bouncing entities with collisions", () => {
         expect(resolvedBallB.body.velocity).to.deep.equal(ballB.body.velocity);
         expect(resolvedBallC.body.velocity).to.deep.equal(ballA.body.velocity);
     });
+
+    test("ball hitting wall should bounce", () => {
+        const ball = pipeInline(
+            givenBall(),
+            withBody(pipe(
+                atPosition(vec(0, 0, 1) as Vec<Meters>),
+                withVelocity(vec(0, 0, -1) as Vec<MetersPerSecond>)
+            )),
+        );
+        const wall = pipeInline(
+            givenWall(),
+            withBody(pipe(
+                atPosition(vec(-1, 0, 0) as Vec<Meters>),
+                segmentShaped(vec(0, 0, 0) as Vec<Meters>, vec(2, 0, 0) as Vec<Meters>),
+                withZeroVelocity
+            )),
+        );
+
+        const [entities, _] = moveEntitiesWithCollisions(
+            1.00 as Seconds,
+            [],
+            pipeInline(emptyEntities(), storeEntity(ball),  storeEntity(wall)),
+        );
+
+        const [resolvedBall, resolvedWall] = entitiesList(entities) as Entity<Physical>[];
+        expect(resolvedBall.body.velocity).to.deep.equal(vec(0, 0, 1) as Vec<MetersPerSecond>);
+        expect(resolvedBall.body.position).to.deep.equal(ball.body.position);
+    });
+
+    test("slow ball hitting wall should bounce", () => {
+        const ball = pipeInline(
+            givenBall(),
+            withBody(pipe(
+                atPosition(vec(0, 0, 1) as Vec<Meters>),
+                withVelocity(vec(0, 0, -0.51) as Vec<MetersPerSecond>)
+            )),
+        );
+        const wall = pipeInline(
+            givenWall(),
+            withBody(pipe(
+                atPosition(vec(-1, 0, 0) as Vec<Meters>),
+                segmentShaped(vec(0, 0, 0) as Vec<Meters>, vec(2, 0, 0) as Vec<Meters>),
+                withZeroVelocity
+            )),
+        );
+
+        const [entities, _] = moveEntitiesWithCollisions(
+            1.00 as Seconds,
+            [],
+            pipeInline(emptyEntities(), storeEntity(ball),  storeEntity(wall)),
+        );
+
+        const [resolvedBall, resolvedWall] = entitiesList(entities) as Entity<Physical>[];
+        expect(resolvedBall.body.velocity).to.deep.equal(vec(0, 0, 0.51) as Vec<MetersPerSecond>);
+    });
+
+    test("ball moving ortogonally hitting wall should bounce", () => {
+        const ball = pipeInline(
+            givenBall(),
+            withBody(pipe(
+                atPosition(vec(-1, 0, 1) as Vec<Meters>),
+                withVelocity(vec(1, 0, -1) as Vec<MetersPerSecond>)
+            )),
+        );
+        const wall = pipeInline(
+            givenWall(),
+            withBody(pipe(
+                atPosition(vec(-100, 0, 0) as Vec<Meters>),
+                segmentShaped(vec(0, 0, 0) as Vec<Meters>, vec(200, 0, 0) as Vec<Meters>),
+                withZeroVelocity
+            )),
+        );
+
+        let [entities, _] = moveEntitiesWithCollisions(
+            0.60 as Seconds,
+            [],
+            pipeInline(emptyEntities(), storeEntity(ball),  storeEntity(wall)),
+        );
+
+        const [resolvedBall, resolvedWall] = entitiesList(entities) as Entity<Physical>[];
+        expect(resolvedBall.body.velocity).to.deep.equal(vec(1, 0, 1) as Vec<MetersPerSecond>);
+    });
+
+    test("ball with different radius moving vertically hitting wall should bounce", () => {
+        const ball = pipeInline(
+            givenBall(),
+            withBody(pipe(
+                sphereShaped(0.8 as Meters),
+                atPosition(vec(1, 0, 10) as Vec<Meters>),
+                withVelocity(vec(0, 0, -10) as Vec<MetersPerSecond>)
+            )),
+        );
+        const wall = pipeInline(
+            givenWall(),
+            withBody(pipe(
+                atPosition(vec(-100, 0, 0) as Vec<Meters>),
+                segmentShaped(vec(0, 0, 0) as Vec<Meters>, vec(200, 0, 0) as Vec<Meters>),
+                withZeroVelocity
+            )),
+        );
+
+        let [entities, _] = moveEntitiesWithCollisions(
+            1.0 as Seconds,
+            [],
+            pipeInline(emptyEntities(), storeEntity(ball),  storeEntity(wall)),
+        );
+
+        const [resolvedBall, resolvedWall] = entitiesList(entities) as Entity<Physical>[];
+        expect(resolvedBall.body.velocity).to.deep.equal(vec(0, 0, 10) as Vec<MetersPerSecond>);
+    });
+
+    test("ball should bounce of segment corner", () => {
+        const ball = pipeInline(
+            givenBall(),
+            withBody(pipe(
+                circleShaped(0.8 as Meters),
+                atPosition(vec(-1, 0, 0) as Vec<Meters>),
+                withVelocity(vec(1, 0, 0) as Vec<MetersPerSecond>)
+            )),
+        );
+        const wall = pipeInline(
+            givenWall(),
+            withBody(pipe(
+                atPosition(vec(0.1, 0, 0) as Vec<Meters>),
+                segmentShaped(vec(0, 0, 0) as Vec<Meters>, vec(1, 0, 0) as Vec<Meters>),
+                withZeroVelocity
+            )),
+        );
+
+        let [entities, _] = moveEntitiesWithCollisions(
+            1.0 as Seconds,
+            [],
+            pipeInline(emptyEntities(), storeEntity(ball),  storeEntity(wall)),
+        );
+
+        const [resolvedBall, resolvedWall] = entitiesList(entities) as Entity<Physical>[];
+        expect(resolvedBall.body.velocity).to.deep.equal(vec(-1, 0, 0) as Vec<MetersPerSecond>);
+    });
+
+    test("ball should bounce of segment corner 2", () => {
+        const ball = pipeInline(
+            givenBall(),
+            withBody(pipe(
+                circleShaped(0.8 as Meters),
+                atPosition(vec(-7.2, 0, -6.1) as Vec<Meters>),
+                withVelocity(vec(1, 0, 0) as Vec<MetersPerSecond>)
+            )),
+        );
+        const wall = pipeInline(
+            givenWall(),
+            withBody(pipe(
+                atPosition(vec(-6, 0, -6) as Vec<Meters>),
+                segmentShaped(vec(0, 0, 0) as Vec<Meters>, vec(0, 0, 12) as Vec<Meters>),
+                withZeroVelocity
+            )),
+        );
+
+        let [entities, _] = moveEntitiesWithCollisions(
+            0.2 as Seconds,
+            [],
+            pipeInline(emptyEntities(), storeEntity(ball),  storeEntity(wall)),
+        );
+        [entities, _] = moveEntitiesWithCollisions(
+            0.2 as Seconds,
+            [],
+            entities,
+        );
+        [entities, _] = moveEntitiesWithCollisions(
+            0.2 as Seconds,
+            [],
+            entities,
+        );
+
+        const [resolvedBall, resolvedWall] = entitiesList(entities) as Entity<Physical>[];
+
+        expect(resolvedBall.body.velocity).to.not.deep.equal(vec(1, 0, 0) as Vec<MetersPerSecond>);
+    });
+
+    test("ball should bounce of segment corner 3", () => {
+        const ball = pipeInline(
+            givenBall(),
+            withBody(pipe(
+                circleShaped(0.8 as Meters),
+                atPosition(vec(-7.2, 0, -7.0) as Vec<Meters>),
+                withVelocity(vec(1, 0, 1) as Vec<MetersPerSecond>)
+            )),
+        );
+        const wall = pipeInline(
+            givenWall(),
+            withBody(pipe(
+                atPosition(vec(-6, 0, -6) as Vec<Meters>),
+                segmentShaped(vec(0, 0, 0) as Vec<Meters>, vec(0, 0, 12) as Vec<Meters>),
+                withZeroVelocity
+            )),
+        );
+
+        let [entities, _] = moveEntitiesWithCollisions(
+            0.5 as Seconds,
+            [],
+            pipeInline(emptyEntities(), storeEntity(ball),  storeEntity(wall)),
+        );
+        [entities, _] = moveEntitiesWithCollisions(
+            0.1 as Seconds,
+            [],
+            entities,
+        );
+
+        const [resolvedBall, resolvedWall] = entitiesList(entities) as Entity<Physical>[];
+
+        expect(resolvedBall.body.velocity).to.not.deep.equal(vec(1, 0, 1) as Vec<MetersPerSecond>);
+    });
 });
 
 const givenBall = (): Entity<Physical> => pipeInline(
@@ -381,5 +592,14 @@ const givenBall = (): Entity<Physical> => pipeInline(
     thatIsPhysical,
     withBody(sphereShaped(0.5 as Meters)),
     thatCollidesWithEntities('ball'),
-    thatOnCollisionWithEntity('ball', bounce)
+    thatCollidesWithEntities('wall'),
+    thatOnCollisionWithEntity('ball', bounce),
+    thatOnCollisionWithEntity('wall', bounceAgainstStatic)
+);
+
+const givenWall = (): Entity<Physical> => pipeInline(
+    givenEntity('wall'),
+    thatIsPhysical,
+    withBody(segmentShaped(vec(0, 0, 0) as Vec<Meters>, vec(1, 0, 0) as Vec<Meters>)),
+    thatCollidesWithEntities('ball'),
 );

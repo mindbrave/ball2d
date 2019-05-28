@@ -1,13 +1,15 @@
 import { pipe } from "remeda";
 import { expect } from "chai";
 
-import { givenBody, sphereShaped, withVelocity, atPosition, triangleShaped, withZeroVelocity } from "../fixtures/body";
+import { givenBody, sphereShaped, withVelocity, atPosition, triangleShaped, withZeroVelocity, circleShaped, segmentShaped } from "../fixtures/body";
 
 import { vec, Vec } from "../../vectors";
-import { sphereBounceOfSphere, sphereBounceOfStaticTriangle } from "../../physics/collisions/resolve";
-import { Meters, MetersPerSecond } from "../../physics/units";
+import { sphereBounceOfSphere, sphereBounceOfStaticTriangle, circleBounceOfStaticSegment } from "../../physics/collisions/resolve";
+import { Meters, MetersPerSecond, Seconds } from "../../physics/units";
 import { BodyPart } from "../../physics/body";
-import { Sphere, Triangle } from "../../physics/shape";
+import { Sphere, Triangle, Circle, Segment } from "../../physics/shape";
+import { EntitiesCollision } from "../../entitiesPhysics";
+import { BodyCollision } from "../../physics/collisions/collision";
 
 describe("Can correctly resolve bouncing bodies off each other", function() {
     test("can bounce sphere of sphere if going into each other in the same direction", function() {
@@ -127,5 +129,121 @@ describe("Can correctly resolve bouncing bodies off each other", function() {
         const resolvedSphere = sphereBounceOfStaticTriangle(sphere, spherePart, staticTriangle, trianglePart);
 
         expect(resolvedSphere.velocity).to.deep.equal(vec(1, 1, 1) as Vec<MetersPerSecond>);
+    });
+
+    test("can bounce circle of horizontal static segment going orthogonally to it", function() {
+        const circle = pipe(
+            givenBody(),
+            circleShaped(1 as Meters),
+            atPosition(vec(0, 0, 1) as Vec<Meters>),
+            withVelocity(vec(1, 0, -1) as Vec<MetersPerSecond>),
+        );
+        const staticSegment = pipe(
+            givenBody(),
+            segmentShaped(
+                vec(0, 0, 0) as Vec<Meters>,
+                vec(2, 0, 0) as Vec<Meters>,
+            ),
+            atPosition(vec(-1, 0, 0) as Vec<Meters>),
+            withZeroVelocity
+        );
+        const circlePart = circle.parts[0] as BodyPart<Circle>;
+        const segmentPart = staticSegment.parts[0] as BodyPart<Segment>;
+        const collision: BodyCollision = {
+            contactPoints: [vec(0, 0, -1) as Vec<Meters>, vec(1, 0, 0) as Vec<Meters>],
+            betweenBodyParts: [0, 0],
+            timeToImpact: 0 as Seconds
+        };
+
+        const resolvedCircle = circleBounceOfStaticSegment(circle, circlePart, staticSegment, segmentPart, collision);
+
+        expect(resolvedCircle.velocity).to.deep.equal(vec(1, 0, 1) as Vec<MetersPerSecond>);
+    });
+
+    test("can bounce circle of horizontal static segment going orthogonally to it", function() {
+        const circle = pipe(
+            givenBody(),
+            circleShaped(1 as Meters),
+            atPosition(vec(10, 0, 1) as Vec<Meters>),
+            withVelocity(vec(-1, 0, -1) as Vec<MetersPerSecond>),
+        );
+        const staticSegment = pipe(
+            givenBody(),
+            segmentShaped(
+                vec(0, 0, 0) as Vec<Meters>,
+                vec(20, 0, 0) as Vec<Meters>,
+            ),
+            atPosition(vec(0, 0, 0) as Vec<Meters>),
+            withZeroVelocity
+        );
+        const circlePart = circle.parts[0] as BodyPart<Circle>;
+        const segmentPart = staticSegment.parts[0] as BodyPart<Segment>;
+        const collision: BodyCollision = {
+            contactPoints: [vec(0, 0, -1) as Vec<Meters>, vec(10, 0, 0) as Vec<Meters>],
+            betweenBodyParts: [0, 0],
+            timeToImpact: 0 as Seconds
+        };
+
+        const resolvedCircle = circleBounceOfStaticSegment(circle, circlePart, staticSegment, segmentPart, collision);
+
+        expect(resolvedCircle.velocity).to.deep.equal(vec(-1, 0, 1) as Vec<MetersPerSecond>);
+    });
+
+    test("can bounce circle of horizontal static segment going perpediculary to it from top", function() {
+        const circle = pipe(
+            givenBody(),
+            circleShaped(1 as Meters),
+            atPosition(vec(0, 0, 1) as Vec<Meters>),
+            withVelocity(vec(0, 0, -1) as Vec<MetersPerSecond>),
+        );
+        const staticSegment = pipe(
+            givenBody(),
+            segmentShaped(
+                vec(0, 0, 0) as Vec<Meters>,
+                vec(2, 0, 0) as Vec<Meters>,
+            ),
+            atPosition(vec(-1, 0, 0) as Vec<Meters>),
+            withZeroVelocity
+        );
+        const circlePart = circle.parts[0] as BodyPart<Circle>;
+        const segmentPart = staticSegment.parts[0] as BodyPart<Segment>;
+        const collision: BodyCollision = {
+            contactPoints: [vec(0, 0, -1) as Vec<Meters>, vec(1, 0, 0) as Vec<Meters>],
+            betweenBodyParts: [0, 0],
+            timeToImpact: 0 as Seconds
+        };
+
+        const resolvedCircle = circleBounceOfStaticSegment(circle, circlePart, staticSegment, segmentPart, collision);
+
+        expect(resolvedCircle.velocity).to.deep.equal(vec(0, 0, 1) as Vec<MetersPerSecond>);
+    });
+
+    test("can bounce circle of horizontal static segment going perpediculary to it from bottom", function() {
+        const circle = pipe(
+            givenBody(),
+            circleShaped(1 as Meters),
+            atPosition(vec(0, 0, -1) as Vec<Meters>),
+            withVelocity(vec(0, 0, 1) as Vec<MetersPerSecond>),
+        );
+        const staticSegment = pipe(
+            givenBody(),
+            segmentShaped(
+                vec(0, 0, 0) as Vec<Meters>,
+                vec(-2, 0, 0) as Vec<Meters>,
+            ),
+            atPosition(vec(1, 0, 0) as Vec<Meters>),
+            withZeroVelocity
+        );
+        const circlePart = circle.parts[0] as BodyPart<Circle>;
+        const segmentPart = staticSegment.parts[0] as BodyPart<Segment>;
+        const collision: BodyCollision = {
+            contactPoints: [vec(0, 0, 1) as Vec<Meters>, vec(-1, 0, 0) as Vec<Meters>],
+            betweenBodyParts: [0, 0],
+            timeToImpact: 0 as Seconds
+        };
+
+        const resolvedCircle = circleBounceOfStaticSegment(circle, circlePart, staticSegment, segmentPart, collision);
+
+        expect(resolvedCircle.velocity).to.deep.equal(vec(0, 0, -1) as Vec<MetersPerSecond>);
     });
 });

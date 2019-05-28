@@ -2,7 +2,7 @@
 import { pipe } from "remeda";
 import {
     add, mul, sub, div, pow2, sqrt2, addCurried as add_, negate, lte,
-    AnyUnit, Unit, Scalar, MultiplyUnits, DivideUnits
+    AnyUnit, Unit, Scalar, MultiplyUnits, DivideUnits, SqrtUnit
 } from "uom-ts";
 
 export interface Vec<UNIT = AnyUnit> {
@@ -101,6 +101,15 @@ export const perpendicularVectorOnXYSpace = <T extends AnyUnit>(v: Vec<T>): Vec<
     z: 0 as T,
 });
 
+export const perpendicularVectorOnXZSpace = <T extends AnyUnit>(v: Vec<T>): Vec<T> => ({
+    x: negate(v.z),
+    y: 0 as T,
+    z: v.x,
+});
+
+export const sqrDistanceTo = <T extends AnyUnit>(v1: Vec<T>) => (v2: Vec<T>): MultiplyUnits<T, T> => vectorSqrMagnitude(subtractVectors(v2, v1));
+export const distanceTo = <T extends AnyUnit>(v1: Vec<T>, v2: Vec<T>): SqrtUnit<MultiplyUnits<T, T>> => sqrt2(sqrDistanceTo(v1)(v2));
+
 export const isZeroVector = <T extends AnyUnit>(v: Vec<T>): boolean => v.x === 0 && v.y === 0 && v.z === 0;
 export const isNotZeroVector = <T extends AnyUnit>(v: Vec<T>): boolean => !isZeroVector(v);
 
@@ -109,3 +118,5 @@ export const vecFromArray = <T extends AnyUnit>(array: [T, T, T]): Vec<T> => ({x
 
 export const vecXYZToXZY = <T extends AnyUnit>(v: Vec<T>): Vec<T> => ({x: v.x, y: v.z, z: v.y});
 export const vecXZYToXYZ = vecXYZToXZY;
+
+export const isEqualVector = (v1: Vec, v2: Vec): boolean => v1.x === v2.x && v1.y === v2.y && v1.z === v2.z;

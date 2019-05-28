@@ -9,7 +9,6 @@ import { updateEntity, mapEntitiesWithTrait, Entity, Entities } from "./gamda/en
 import { Soccer } from "./soccer";
 
 /**
- * 
  * Relative direction means forward, back, left and right.
  */
 export const orderCharacterToMoveInDirection = (relativeDirection: Vec<Scalar>) => (game: Soccer): [Soccer, GameEvents] => [{
@@ -21,9 +20,11 @@ export const orderCharacterToMoveInDirection = (relativeDirection: Vec<Scalar>) 
     ),
 }, []];
 
+export const stopCharacter = evolve({movementBehavior: orderToNotMove});
+
 export const orderCharacterToStop = (game: Soccer): [Soccer, GameEvents] => [{
     ...game,
-    entities: updateEntity<Entity<WithBehavior>>(game.selectedCharacterId, evolve({movementBehavior: orderToNotMove}), game.entities),
+    entities: updateEntity<Entity<WithBehavior>>(game.selectedCharacterId, stopCharacter, game.entities),
 }, []];
 
 export const updateMovingBehavior = (delta: Seconds) => (game: Soccer): [Soccer, GameEvents] => ([

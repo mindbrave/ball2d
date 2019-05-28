@@ -20,7 +20,7 @@ export const createBall = (position: Vec<Meters>): Ball => ({
         position,
         velocity: zeroVector as Vec<MetersPerSecond>,
         dampening: 1.0 as MetersPerSquaredSecond,
-        mass: 3.0 as Kilograms,
+        mass: 1.3 as Kilograms,
         parts: [
             {
                 shape: {

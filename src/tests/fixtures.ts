@@ -3,7 +3,7 @@ import { pipe, range } from "remeda";
 import { assocPath, head, assoc, pipe as pipeRamda } from "ramda";
 import { vec, Vec } from "../gamda/vectors";
 import { MetersPerSecond, Meters, Seconds, MetersPerSquaredSecond, Kilograms } from "../gamda/physics/units";
-import { createParallelogramWall, Wall } from "../wall";
+import { Wall, createWall } from "../wall";
 import { Soccer, updateGame, addEntities } from "../soccer";
 import { Entity, EntityId } from "../gamda/entities";
 import { Map, Set } from "immutable";
@@ -79,7 +79,7 @@ export const withSphereShape = (radius: Meters) => (char: Character): Character 
 export const withNoDampening = (character: Character) => assocPath(["body", "dampening"], 0 as MetersPerSquaredSecond, character);
 export const withElasticity = (elasticity: Scalar) => (character: Character) => assocPath(["body", "elasticity"], elasticity, character);
 
-export const givenWall = pipeRamda(createParallelogramWall, (wall: Wall) => assocPath(['body', 'elasticity'], 1.0, wall));
+export const givenWall = pipeRamda(createWall, (wall: Wall) => assocPath(['body', 'elasticity'], 1.0, wall));
 
 export const givenGame = (...givens: Array<(game: Soccer) => Soccer>): Soccer => ((pipe as any)(
     {

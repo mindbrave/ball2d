@@ -1,216 +1,148 @@
 
 import  { Map } from "immutable";
-import { isNil } from "ramda";
-import { 
-    Engine, Scene, Vector3, MeshBuilder, DirectionalLight, Mesh, ArcRotateCamera,
-    ShadowGenerator,
-    Material,
-    Color3,
-    StandardMaterial,
-    PointLight,
-    Color4,
-    DefaultRenderingPipeline,
- } from "babylonjs";
-import "babylonjs-materials";
 
-import { Vec, vecToArray, Radians, normalizeVector } from "./gamda/vectors";
+import { Vec, vecToArray, addVectors, subtractVectors } from "./gamda/vectors";
 import { Entity, EntityId, getEntity, EntityAdded } from "./gamda/entities";
-import { Soccer } from "./soccer";
-import { Meters } from "./gamda/physics/units";
-import { Body, BodyPart } from "./gamda/physics/body";
-import { Sphere, Triangle } from "./gamda/physics/shape";
+import { Soccer, Team } from "./soccer";
+import { BodyPart } from "./gamda/physics/body";
+import { Sphere, Segment } from "./gamda/physics/shape";
 import { Physical } from "./gamda/entitiesPhysics";
-import { GameEvents } from "./gamda/game";
+import { GameEvents, game } from "./gamda/game";
 import { Character, CharacterSelected } from "./character";
 import { Wall } from "./wall";
-import { flatten } from "remeda";
-import { Scalar } from "uom-ts";
-import { pipe } from "rxjs";
 import { Ball } from "./ball";
+import { Application, Graphics, DisplayObject } from "pixi.js";
+import { Meters } from "./gamda/physics/units";
+import { DivideUnits, Unit, mul, sub } from "uom-ts";
+
+type Pixels = Unit<{px: 1}>;
 
 export interface View {
-    engine: Engine;
-    scene: Scene;
-    entitiesMesh: Map<EntityId, Mesh>;
-    shadowGenerators: ShadowGenerator[];
-    camera: ArcRotateCamera;
-    materials: {
-        [name:string]: Material
-    }
+    app: Application,
+    viewPosition: [Pixels, Pixels],
+    viewScale: DivideUnits<Pixels, Meters>,
+    entitiesViews: Map<EntityId, DisplayObject>;
 }
 
-export const createView = (): View => {
+export const createView = async (): Promise<View> => {
+    console.log('view ok')
     const canvas = document.getElementById("canvas") as HTMLCanvasElement;
-    const engine = new Engine(canvas, false);
+    const app = new Application({width: 256, height: 256, view: canvas, antialias: true, backgroundColor: 0xFFFFFF});
+    app.renderer.view.style.position = "absolute";
+    app.renderer.view.style.display = "block";
+    app.renderer.autoResize = true;
+    app.renderer.resize(window.innerWidth, window.innerHeight);
 
-    const scene = new Scene(engine);
-    scene.clearColor = new Color4(0, 0, 0, 1);
+    await loadResources();
 
-    const light1 = new PointLight("pointLight", new Vector3(-28, 28, -28), scene);
-    light1.intensity = 1.0;
-    const shadowGenerator1 = new ShadowGenerator(1024, light1);
-    shadowGenerator1.useExponentialShadowMap = true;
-    const light2 = new PointLight("pointLight", new Vector3(28, 28, 28), scene);
-    // const shadowGenerator2 = new ShadowGenerator(1024, light2);
-    // shadowGenerator2.useExponentialShadowMap = true;
-
-    const camera = createCamera(scene);
-    camera.attachControl(canvas, true);
-
-    const pipeline = new DefaultRenderingPipeline(
-        "default", // The name of the pipeline
-        true, // Do you want HDR textures ?
-        scene, // The scene instance
-        [camera] // The list of cameras to be attached to
-    );
-    pipeline.samples = 4;
-    pipeline.imageProcessing.contrast = 1.0;
-
-    const entitiesMesh = Map<EntityId, Mesh>();
-
-    const wallMaterial = new StandardMaterial("WallMaterial", scene);
-    wallMaterial.diffuseColor = new Color3(79/255.0, 57/255.0, 35/255.0);
-    wallMaterial.specularColor = new Color3(79/255.0, 57/255.0, 35/255.0);
-
-    const ballMaterial = new StandardMaterial("BallMaterial", scene);
-    ballMaterial.diffuseColor = new Color3(40/255.0, 54/255.0, 76/255.0);
-    ballMaterial.specularColor = new Color3(40/255.0, 54/255.0, 76/255.0);
+    const entitiesViews = Map<EntityId, DisplayObject>();
 
     return {
-        engine,
-        scene,
-        entitiesMesh,
-        shadowGenerators: [shadowGenerator1],
-        camera,
-        materials: {
-            'wall': wallMaterial,
-            'ball': ballMaterial,
-        }
+        app,
+        entitiesViews,
+        viewPosition: [-app.view.width / 2.0 as Pixels, -app.view.height / 2.0 as Pixels],
+        viewScale: 15.0 as DivideUnits<Pixels, Meters>
     };
 };
 
-export const createCamera = (scene: Scene): ArcRotateCamera => {
-    const camera = new ArcRotateCamera("Camera", 0 as Radians, Math.PI / 4 as Radians, 100.0 as Meters, Vector3.Zero(), scene);
-    camera.angularSensibilityX = 5000.0;
-    camera.angularSensibilityY = 5000.0;
-    camera.lowerAlphaLimit = -Math.PI / 2 as Radians;
-    camera.upperAlphaLimit = -Math.PI / 2 as Radians;
-    camera.lowerBetaLimit = Math.PI / 4 as Radians;
-    camera.upperBetaLimit = Math.PI / 4 as Radians;
-    camera.lowerRadiusLimit = 100.0 as Meters;
-    camera.upperRadiusLimit = 100.0 as Meters;
-    return camera;
+const loadResources = async (): Promise<void> => {
+    return new Promise(resolve => {
+        PIXI.loader.add([
+            "../assets/icons1.jpg",
+            "../assets/icons2.jpg",
+        ]).load(resolve);
+    });
 };
 
-export const updateEntitiesMeshPositions = (game: Soccer): Soccer => {
-    game.view.entitiesMesh.forEach(
-        (mesh, entityId) => {
+export const updateEntitiesViewPositions = (game: Soccer): Soccer => {
+    game.view.entitiesViews.forEach(
+        (view, entityId) => {
             let entity = getEntity(entityId, game.entities) as Entity<Physical>;
-            mesh.setAbsolutePosition(vecToBabylonVec(entity.body.position));
+            view.position.set(...vecToViewCoords(entity.body.position, game.view));
         }
     );
     return game;
 };
 
-export const runRenderLoop = (view: View): View => {
-    view.engine.runRenderLoop(() => {
-        view.scene.render();
-    });
-    return view;
-};
-
-const createCharacterView = (view: View, character: Character): Mesh => {
+const createCharacterView = (view: View, character: Character): DisplayObject => {
     const body = character.body;
     const sphereBody = body.parts[0] as BodyPart<Sphere>;
-    const sphere = MeshBuilder.CreateSphere("sphere", { diameter: sphereBody.shape.radius * 2, segments: 12 }, view.scene);
-    sphere.setAbsolutePosition(vecToBabylonVec(body.position));
-    view.shadowGenerators.forEach(generator => generator.addShadowCaster(sphere));
-    return sphere;
+    const graphics = new Graphics();
+    let color;
+    if (character.teamAssign.team === Team.A) {
+        color = 0xFF0000; 
+    } else {
+        color = 0x00FF00; 
+    }
+    graphics.lineStyle(5, color, 1);
+    graphics.beginFill(0xFFFFFF);
+    graphics.arc(0, 0, (sphereBody.shape.radius * view.viewScale) - 5/2, 0, 2*Math.PI);
+    graphics.endFill();
+    graphics.position.set(...vecToViewCoords(body.position, view));
+    return graphics;
 };
 
-const createBallView = (view: View, ball: Ball): Mesh => {
+const createBallView = (view: View, ball: Ball): DisplayObject => {
     const body = ball.body;
     const sphereBody = body.parts[0] as BodyPart<Sphere>;
-    const sphere = MeshBuilder.CreateSphere("sphere", { diameter: sphereBody.shape.radius * 2, segments: 12 }, view.scene);
-    sphere.setAbsolutePosition(vecToBabylonVec(body.position));
-    sphere.material = view.materials["ball"];
-    view.shadowGenerators.forEach(generator => generator.addShadowCaster(sphere));
-    return sphere;
+    const graphics = new Graphics();
+    graphics.lineStyle(5, 0x000000, 1);
+    graphics.beginFill(0xFFFFFF);
+    graphics.arc(0, 0, sphereBody.shape.radius * view.viewScale, 0, 2*Math.PI);
+    graphics.endFill();
+    graphics.position.set(...vecToViewCoords(body.position, view));
+    return graphics;
 };
 
-const createWallView = (view: View, wall: Wall): Mesh => {
-    const triangle1 = wall.body.parts[0] as BodyPart<Triangle>;
-    const triangle2 = wall.body.parts[1] as BodyPart<Triangle>;
-    const mesh = new Mesh("wall", view.scene);
-    mesh.material = view.materials["wall"];
-    mesh.receiveShadows = true;
-    const positions = flatten(
-        [triangle1.shape.p1, triangle2.shape.p3, triangle1.shape.p3, triangle1.shape.p2].map(vecToArray)
-    );
-    const indices = [0, 1, 2, 0, 2, 3];    
+const createWallView = (view: View, wall: Wall): DisplayObject => {
+    const segment = wall.body.parts[0] as BodyPart<Segment>;
+    const graphics = new Graphics();
+    graphics.lineStyle(1, 0x000000, 1);
+    const pointA = addVectors(addVectors(wall.body.position, segment.relativePosition), segment.shape.pointA);
+    const graphicsPointA = vecToViewCoords(pointA, view) as [Pixels, Pixels];
+    const pointB = addVectors(pointA, segment.shape.pointB);
+    const graphicsPointB = vecToViewCoords(pointB, view) as [Pixels, Pixels];
 
-    const normals: number[] = [];
-
-    BABYLON.VertexData.ComputeNormals(positions, indices, normals);
-
-    const vertexData = new BABYLON.VertexData();
-
-    vertexData.positions = positions;
-    vertexData.indices = indices;
-    vertexData.normals = normals;
-    vertexData.applyToMesh(mesh);
-
-    mesh.setAbsolutePosition(vecToBabylonVec(wall.body.position));
-    return mesh;
+    graphics.position.set(...graphicsPointA);
+    graphics.moveTo(0, 0);
+    graphics.lineTo(graphicsPointB[0] - graphicsPointA[0], graphicsPointB[1] - graphicsPointA[1]);
+    
+    return graphics;
 }
 
-export const addEntityMeshToView = (entity: Entity<Physical & unknown>, view: View): View => {
-    let mesh;
+export const addEntityViewToView = (entity: Entity<Physical & unknown>, view: View): View => {
+    let displayObject;
     switch (entity.type) {
         case 'character':
-            mesh = createCharacterView(view, entity as Character);
+            displayObject = createCharacterView(view, entity as Character);
             break;
         case 'ball':
-            mesh = createBallView(view, entity as Ball);
+            displayObject = createBallView(view, entity as Ball);
             break;
         case 'wall':
-            mesh = createWallView(view, entity as Wall);
+            displayObject = createWallView(view, entity as Wall);
             break;
         default:
             throw new Error("Unknown entity type");
     }
+    view.app.stage.addChild(displayObject);
     return {
         ...view,
-        entitiesMesh: view.entitiesMesh.set(entity.id!, mesh),
+        entitiesViews: view.entitiesViews.set(entity.id!, displayObject),
     };
 };
 
-export const getPointerCurrent3dPosition = (view: View): Vec<Meters> | null => {
-    const pickInfo = view.scene.pick(view.scene.pointerX, view.scene.pointerY);
-    if (isNil(pickInfo) || isNil(pickInfo.pickedPoint)) {
-        return null;
-    }
-    return babylonVectorToVec(pickInfo.pickedPoint);
-};
-
-export const getCameraDirection = (view: View): Vec<Scalar> => {
-    return normalizeVector(babylonVectorToVec(view.camera.target.subtract(view.camera.position)));
+const vecToViewCoords = (vec: Vec<Meters>, view: View): Pixels[] => {
+    const [x, _, z] = vecToArray(vec);
+    const [scaledX, scaledZ] = [mul(x, view.viewScale), mul(z, view.viewScale)]
+    return [sub(scaledX, view.viewPosition[0]), sub(view.app.view.height as Pixels, sub(scaledZ, view.viewPosition[1]))];
 }
-
-export const changeCameraEntityTarget = (entity: Entity<Physical>, view: View): View => {
-    view.camera.setTarget(view.entitiesMesh.get(entity.id!)!);
-    return view;
-};
-
-const vecToBabylonVec = (vec: Vec): Vector3 => Vector3.FromArray(vecToArray(vec));
-const babylonVectorToVec = (vec: Vector3): Vec<Meters> => ({x: vec.x as Meters, y: vec.y as Meters, z: vec.z as Meters});
 
 export const addEntityView = (event: EntityAdded) => (game: Soccer): [Soccer, GameEvents] => [{
     ...game,
-    view: addEntityMeshToView(getEntity(event.entityId, game.entities) as Entity<Physical>, game.view)
+    view: addEntityViewToView(getEntity(event.entityId, game.entities) as Entity<Physical>, game.view)
 }, []];
 
-export const changeViewCameraTarget = (event: CharacterSelected) => (game: Soccer): [Soccer, GameEvents] => [{
-    ...game,
-    // view: changeCameraEntityTarget(getEntity(event.characterId, game.entities) as Entity<Physical>, game.view),
-}, []];
+export const changeSelectedViewCharacter = (event: CharacterSelected) => (game: Soccer): [Soccer, GameEvents] => {
+    return [game, []];
+};

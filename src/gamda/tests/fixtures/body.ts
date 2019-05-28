@@ -51,6 +51,19 @@ export const sphereShaped = (radius: Meters) => (body: Body): Body => ({
         }
     }]
 });
+export const circleShaped = sphereShaped;
+
+export const segmentShaped = (p1: Vec<Meters>, p2: Vec<Meters>) => (body: Body): Body => ({
+    ...body,
+    parts: [{
+        relativePosition: vec(0, 0, 0) as Vec<Meters>,
+        shape: {
+            type: ShapeType.Segment,
+            pointA: p1,
+            pointB: p2
+        }
+    }],
+});
 
 export const triangleShaped = (p1: Vec<Meters>, p2: Vec<Meters>, p3: Vec<Meters>) => (body: Body): Body => ({
     ...body,
