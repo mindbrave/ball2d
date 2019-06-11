@@ -55,3 +55,6 @@ export const wsadDirectionToVec = (wsadDirection: WSADDirection): Vec<Scalar> =>
     y: 0 as Scalar,
     z: wsadDirection.y as Scalar,
 });
+
+export const onMouseDown = (element: HTMLElement): Observable<MouseEvent> => fromEvent<MouseEvent>(element, "mousedown");
+export const onLeftMouseDown = (element: HTMLElement): Observable<MouseEvent> => onMouseDown(element).pipe(filter(event => event.button === 0));

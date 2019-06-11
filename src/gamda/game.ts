@@ -1,6 +1,8 @@
 import { Observable, Subject } from "rxjs";
 import { scan } from "rxjs/operators";
 import { concat } from "ramda";
+import { Meters } from "./physics/units";
+import { Vec } from "./vectors";
 
 export type GameEvent = Readonly<{
     type: string;
@@ -24,3 +26,10 @@ export const pipeWithEvents = <T>(arg: T, ...fns: ((a: T) => [T, GameEvents])[])
     let [result, events] = f(acc[0] as T);
     return [result, concat(acc[1], events)]
 }, [arg, []]);
+
+export interface FieldPositionPointed extends GameEvent {
+    type: 'FieldPositionPointed',
+    position: Vec<Meters>
+}
+
+export const FIELD_POSITION_POINTED = "FieldPositionPointed";

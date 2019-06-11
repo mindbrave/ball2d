@@ -1,6 +1,6 @@
 import { Vec, zeroVector } from "./gamda/vectors";
 import { Meters, MetersPerSecond, MetersPerSquaredSecond, Kilograms } from "./gamda/physics/units";
-import { Entity, EntityId } from "./gamda/entities";
+import { Entity } from "./gamda/entities";
 import { Physical, alwaysCollide, bounce, doesntOverlap, bounceAgainstStatic } from "./gamda/entitiesPhysics";
 import { ShapeType } from "./gamda/physics/shape";
 import { Scalar } from "uom-ts";
@@ -19,8 +19,8 @@ export const createBall = (position: Vec<Meters>): Ball => ({
         doesGravityAppliesToThisBody: true,
         position,
         velocity: zeroVector as Vec<MetersPerSecond>,
-        dampening: 1.0 as MetersPerSquaredSecond,
-        mass: 1.3 as Kilograms,
+        dampening: 0.4 as MetersPerSquaredSecond,
+        mass: 5.0 as Kilograms,
         parts: [
             {
                 shape: {

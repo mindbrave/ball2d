@@ -5,8 +5,8 @@ import { Vec, vec } from "./gamda/vectors";
 import { Meters, MetersPerSecond, MetersPerSquaredSecond, Kilograms } from "./gamda/physics/units";
 import { ShapeType } from "./gamda/physics/shape";
 import { Entity, EntityId } from "./gamda/entities";
-import { Physical, alwaysCollide, doesntOverlap, bounce, bounceAgainstStatic, block } from "./gamda/entitiesPhysics";
-import { WithBehavior } from "./gamda/movingBehavior";
+import { Physical, alwaysCollide, doesntOverlap, bounce, bounceAgainstStatic } from "./gamda/entitiesPhysics";
+import { WithBehavior, updateToStop } from "./gamda/movingBehavior";
 import { Map } from "immutable";
 import { GameEvent } from "./gamda/game";
 import { Team } from "./soccer";
@@ -42,7 +42,7 @@ export const createCharacter = (position: Vec<Meters>, teamAssign: TeamAssign): 
         doesGravityAppliesToThisBody: true,
         position,
         velocity: vec(0, 0, 0) as Vec<MetersPerSecond>,
-        dampening: 1.0 as MetersPerSquaredSecond, // 5.0 as MetersPerSquaredSecond,
+        dampening: 10.0 as MetersPerSquaredSecond,
         parts: [
             {
                 shape: {
@@ -52,8 +52,8 @@ export const createCharacter = (position: Vec<Meters>, teamAssign: TeamAssign): 
                 relativePosition: vec(0, 0, 0) as Vec<Meters>
             }
         ],
-        elasticity: 1.0 as Scalar, // 0.7 as Scalar,
-        mass: 1.3 as Kilograms, // 1.0 as Kilograms,
+        elasticity: 0.7 as Scalar,
+        mass: 1.0 as Kilograms,
     },
     contactBehaviors: Map({
         'character': {
@@ -76,8 +76,9 @@ export const createCharacter = (position: Vec<Meters>, teamAssign: TeamAssign): 
         }
     }),
     movementBehavior: {
-        acceleration: 15.0 as MetersPerSquaredSecond,
-        maxVelocity: 10.0 as MetersPerSecond,
-        direction: {x: 0 as Scalar, y: 0 as Scalar, z: 0 as Scalar},
+        type: "Stop",
+        acceleration: 25.0 as MetersPerSquaredSecond,
+        maxVelocity: 2.0 as MetersPerSecond,
+        updateBehavior: updateToStop,
     },
 });

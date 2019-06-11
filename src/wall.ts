@@ -1,5 +1,5 @@
 
-import { Entity } from "./gamda/entities";
+import { Entity} from "./gamda/entities";
 import { Physical, alwaysCollide, doesntOverlap } from "./gamda/entitiesPhysics";
 import { Vec, zeroVector, vec, subtractVectors } from "./gamda/vectors";
 import { Meters, MetersPerSecond, MetersPerSquaredSecond, Kilograms } from "./gamda/physics/units";

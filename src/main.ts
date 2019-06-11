@@ -1,13 +1,13 @@
 
 import { merge, Observable, of } from "rxjs";
-import { map, tap, filter, mapTo } from "rxjs/operators";
+import { map, tap, filter, mapTo, pluck } from "rxjs/operators";
 
 import { ticks, TicksPerSecond } from "./gamda/ticks";
 import { isZeroVector, isNotZeroVector } from "./gamda/vectors";
-import { updateEntitiesViewPositions, addEntityView, createView, changeSelectedViewCharacter } from "./view";
-import { wsad, onKeyDown, wsadDirectionToVec } from "./gamda/input";
-import { game, gameEvents, GameCommand, GameEvent, isEventOfType } from "./gamda/game";
-import { orderCharacterToStop, orderCharacterToMoveInDirection } from "./movement";
+import { updateEntitiesViewPositions, addEntityView, createView, changeSelectedViewCharacter, checkWhatWasClicked } from "./view";
+import { wsad, onKeyDown, wsadDirectionToVec, onLeftMouseDown } from "./gamda/input";
+import { game, gameEvents, GameCommand, GameEvent, isEventOfType, FieldPositionPointed, FIELD_POSITION_POINTED } from "./gamda/game";
+import { orderCharacterToStop, orderCharacterToMoveInDirection, orderCharacterToMoveToPosition } from "./movement";
 import { startGame } from "./start";
 import { CharacterSelected, CHARACTER_SELECTED } from "./character";
 import { EntityAdded, ENTITY_ADDED, EntityId, Entity } from "./gamda/entities";
@@ -25,23 +25,11 @@ const run = async (): Promise<void> => {
     const gameEvents$ = gameEvents();
     const whenEntityIsAdded$ = gameEvents$.pipe(filter(isEventOfType<GameEvent, EntityAdded>(ENTITY_ADDED)));
     const whenCharacterIsSelected$ = gameEvents$.pipe(filter(isEventOfType<GameEvent, CharacterSelected>(CHARACTER_SELECTED)));
+    const whenFieldPositionIsPointed$ = gameEvents$.pipe(filter(isEventOfType<GameEvent, FieldPositionPointed>(FIELD_POSITION_POINTED)));
 
-    const gameCommands$: Observable<GameCommand<Soccer>> = merge(
-        of(startGame),
-        everyTick$.pipe(map(updateGame)),
-        directionToMove$.pipe(filter(isZeroVector)).pipe(mapTo(orderCharacterToStop)),
-        directionToMove$.pipe(filter(isNotZeroVector)).pipe(map(orderCharacterToMoveInDirection)),
-        onKeyDown(" ").pipe(mapTo(kickBallWithSelectedCharacter)),
-        onKeyDown("1").pipe(mapTo(selectGivenCharacter(1))),
-        onKeyDown("2").pipe(mapTo(selectGivenCharacter(2))),
-        onKeyDown("3").pipe(mapTo(selectGivenCharacter(3))),
-        onKeyDown("4").pipe(mapTo(selectGivenCharacter(4))),
-        whenEntityIsAdded$.pipe(map(addEntityView)),
-        whenCharacterIsSelected$.pipe(map(changeSelectedViewCharacter)),
-    );
-
+    const view = await createView();
     const emptyGameState = async (): Promise<Soccer> => ({
-        selectedCharacterId: 0 as EntityId,
+        selectedCharacterId: null,
         gravity: 10 as MetersPerSquaredSecond,
         playerTeam: Team.A,
         teams: {
@@ -58,8 +46,24 @@ const run = async (): Promise<void> => {
                 "belongsToTeam": Set<EntityId>(),
             },
         },
-        view: await createView(),
+        view,
     });
+
+    const gameCommands$: Observable<GameCommand<Soccer>> = merge(
+        of(startGame),
+        everyTick$.pipe(map(updateGame)),
+        directionToMove$.pipe(filter(isZeroVector)).pipe(mapTo(orderCharacterToStop)),
+        directionToMove$.pipe(filter(isNotZeroVector)).pipe(map(orderCharacterToMoveInDirection)),
+        onKeyDown(" ").pipe(mapTo(kickBallWithSelectedCharacter)),
+        onKeyDown("1").pipe(mapTo(selectGivenCharacter(1))),
+        onKeyDown("2").pipe(mapTo(selectGivenCharacter(2))),
+        onKeyDown("3").pipe(mapTo(selectGivenCharacter(3))),
+        onKeyDown("4").pipe(mapTo(selectGivenCharacter(4))),
+        whenEntityIsAdded$.pipe(map(addEntityView)),
+        whenCharacterIsSelected$.pipe(map(changeSelectedViewCharacter)),
+        onLeftMouseDown(view.app.view).pipe(map(checkWhatWasClicked)),
+        whenFieldPositionIsPointed$.pipe(pluck('position')).pipe(map(orderCharacterToMoveToPosition)),
+    );
 
     const onGameUpdate$ = game(gameCommands$, gameEvents$, await emptyGameState());
     onGameUpdate$.subscribe(updateEntitiesViewPositions);

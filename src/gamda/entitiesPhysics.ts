@@ -74,7 +74,7 @@ export const moveEntitiesWithCollisions = curry((duration: Seconds, events: Game
 
 export const moveUntilFirstCollision = (duration: Seconds, entities: Entity<Physical>[]): [Entity<Physical>[], Maybe<EntitiesCollision>] => {
     const incomingCollisions = findIncomingCollisions(duration, entities);
-    if (isEmpty(incomingCollisions)) {
+    if (incomingCollisions.length === 0) {
         return [map(evolve({body: move(duration)}), entities), null];
     }
     const earliestCollision = head(sortBy((collision: EntitiesCollision): Seconds => collision.bodyCollision.timeToImpact, incomingCollisions))!;
@@ -137,7 +137,10 @@ const applyContactEffectsAgainstEntity = (entity1: Entity<Physical>, entity2: En
 };
 
 export const block: OnCollision = (collision, entityA, entityB, entities) => (
-    [updateEntity<Entity<Physical>>(entityA.id!, evolve({body: setZeroVelocity}), entities), []]
+    [
+        updateEntity(entityA.id!, (entity: Entity): Entity<Physical> => ({...entity as Entity<Physical>, body: setZeroVelocity((entity as Entity<Physical>).body)}), entities),
+        []
+    ]
 );
 
 export const bounce: OnCollision = (collision, entityA, entityB, entities) => {
@@ -170,10 +173,10 @@ export const bounceAgainstStatic: OnCollision = (collision, entityA, entityB, en
     return [setEntity(entityA, entities), []];
 };
 
-export const dampenEntitiesVelocity = (delta: Seconds) => (entities: Entities) => mapEntitiesWithTrait<Entity<Physical>>('physical', evolve({
+export const dampenEntitiesVelocity = (delta: Seconds) => (entities: Entities) => mapEntitiesWithTrait('physical', evolve({
     body: applyDampening(delta),
 }))(entities);
 
-export const applyGravityToEntities = (delta: Seconds, gravity: MetersPerSquaredSecond) => (entities: Entities) => mapEntitiesWithTrait<Entity<Physical>>('physical', evolve({
+export const applyGravityToEntities = (delta: Seconds, gravity: MetersPerSquaredSecond) => (entities: Entities) => mapEntitiesWithTrait('physical', evolve({
     body: applyGravity(delta, gravity),
 }))(entities);

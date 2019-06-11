@@ -11,10 +11,10 @@ import { subtractVectors, scaleVector, Vec, normalizeVector } from "./gamda/vect
 import { Scalar } from "uom-ts";
 
 const KICK_RANGE = 2.5 as Meters;
-const KICK_FORCE = 15.0 as MetersPerSecond;
+const KICK_FORCE = 5.0 as MetersPerSecond;
 
 export const kickBallWithSelectedCharacter = (game: Soccer): [Soccer, GameEvents] => {
-    const character = getEntity(game.selectedCharacterId, game.entities) as Character;
+    const character = getEntity(game.selectedCharacterId!, game.entities) as Character;
     const ball = nearestBall(character, game.entities);
     if (isEntityInRange(KICK_RANGE, ball, character)) {
         return [{

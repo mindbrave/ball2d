@@ -1,6 +1,6 @@
 
 import * as math from "mathjs"
-import { head, sortBy, prop, isEmpty } from "ramda";
+import { head, sortBy, prop } from "ramda";
 
 import { subtractVectors, vectorMagnitude, scaleVector, vectorSqrMagnitude, normalizeVector, dotProduct, isZeroVector, Vec, crossProduct, addVectors, vecToArray, vecFromArray, negateVector, vec, sqrDistanceTo, distanceTo } from "../../vectors";
 import { add, sub, lt, pow2, lte, gte, gt, sqrt2, div, mul, AnyUnit, negate, MultiplyUnits, Scalar } from "uom-ts";
@@ -40,7 +40,7 @@ export const collisionBetweenBodies = (body1: Body, body2: Body, duration: Secon
             collisions.push({...collisionData, betweenBodyParts: [i, k]});
         }
     }
-    if (isEmpty(collisions)) {
+    if (collisions.length === 0) {
         return null;
     }
     return head(sortBy(prop<'timeToImpact', number>('timeToImpact'), collisions))!;

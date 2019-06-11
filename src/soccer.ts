@@ -2,13 +2,14 @@
 import { append } from "ramda";
 import assocPath from "ramda/es/assocPath";
 
-import { Entities, EntityId, Entity, storeEntity, EntityAdded, ENTITY_ADDED, getEntity, setManyEntities, filterEntities } from "./gamda/entities";
+import { Entities, EntityId, storeEntity, EntityAdded, ENTITY_ADDED, getEntity, Entity, setEntity, updateEntity } from "./gamda/entities";
 import { View } from "./view";
 import { Seconds, MetersPerSquaredSecond } from "./gamda/physics/units";
 import { GameEvents, pipeWithEvents, GameEvent } from "./gamda/game";
-import { updateMovingBehavior, stopCharacter } from "./movement";
+import { updateMovingBehavior } from "./movement";
 import { updatePhysics } from "./physics";
-import { Character, CHARACTER_SELECTED, isCharacter } from "./character";
+import { Character, CHARACTER_SELECTED } from "./character";
+import { orderToNotMove } from "./gamda/movingBehavior";
 
 export enum Team { A, B };
 
@@ -19,7 +20,7 @@ type Teams = {
 };
 
 export type Soccer = {
-    selectedCharacterId: EntityId;
+    selectedCharacterId: EntityId | null;
     playerTeam: Team,
     teams: Teams,
     gravity: MetersPerSquaredSecond;
@@ -27,15 +28,19 @@ export type Soccer = {
     view: View;
 };
 
-export const selectCharacter = (character: Character, game: Soccer): [Soccer, GameEvents] => ([stopCharacters({
-    ...game,
-    selectedCharacterId: character.id!,
-}), [{type: CHARACTER_SELECTED, characterId: character.id!} as GameEvent]])
+export const selectCharacter = (character: Character, game: Soccer): [Soccer, GameEvents] => ([
+    {
+        ...game,
+        entities: game.selectedCharacterId !== null ? updateEntity(game.selectedCharacterId, stopCharacterMovingInDirection, game.entities) : game.entities,
+        selectedCharacterId: character.id!,
+    },
+    [{type: CHARACTER_SELECTED, characterId: character.id!} as GameEvent]]
+);
 
-const stopCharacters = (game: Soccer): Soccer => ({
-    ...game,
-    entities: setManyEntities(filterEntities(isCharacter, game.entities).map(stopCharacter), game.entities),
-});
+const stopCharacterMovingInDirection = (character: Character): Character => (
+    character.movementBehavior.type === "GoInDirection" ? ({...character, movementBehavior: orderToNotMove(character.movementBehavior)}) : character 
+);
+
 const getPlayerCharacterByIndex = (index: number, game: Soccer): Character => (getEntity(game.teams[game.playerTeam][index], game.entities) as Character);
 
 export const selectGivenCharacter = (characterIndex: number) => (game: Soccer): [Soccer, GameEvents] => (
@@ -48,8 +53,8 @@ export const updateGame = (delta: Seconds) => (game: Soccer): [Soccer, GameEvent
     updatePhysics(delta)
 );
 
-export const addEntities = (entitiesToAdd: Entity<unknown>[]) => (game: Soccer): [Soccer, EntityAdded[]] => {
-    return entitiesToAdd.reduce(([game, events]: [Soccer, EntityAdded[]], entity: Entity<unknown>): [Soccer, EntityAdded[]] => {
+export const addEntities = (entitiesToAdd: Entity[]) => (game: Soccer): [Soccer, EntityAdded[]] => {
+    return entitiesToAdd.reduce(([game, events]: [Soccer, EntityAdded[]], entity: Entity): [Soccer, EntityAdded[]] => {
         let entities = storeEntity(entity)(game.entities);
         return [{...game, entities}, append<EntityAdded>({type: ENTITY_ADDED, entityId: entities.lastEntityId}, events)];
     }, [game, []])

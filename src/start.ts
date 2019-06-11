@@ -1,10 +1,10 @@
 
-import { createCharacter, isCharacter, CHARACTER_RADIUS } from "./character";
+import { createCharacter, isCharacter } from "./character";
 import { Meters } from "./gamda/physics/units";
 import { Soccer, selectCharacter, addEntities, Team, addCharacter } from "./soccer";
 import { GameEvents, pipeWithEvents } from "./gamda/game";
-import { filterEntities, Entity } from "./gamda/entities";
-import { createWall } from "./wall";
+import { filterEntities, } from "./gamda/entities";
+import { createWall, Wall } from "./wall";
 import { vec, Vec } from "./gamda/vectors";
 import { createBall } from "./ball";
 
@@ -75,7 +75,7 @@ export const startGame = (game: Soccer): [Soccer, GameEvents] => {
 
 const selectFirstCharacter = (game: Soccer): [Soccer, GameEvents] => selectCharacter(filterEntities(isCharacter, game.entities)[0], game);
 
-const createPlayField = (): Entity[] => {
+const createPlayField = (): Wall[] => {
     const westWall = [
         createWall(
             vec(-30, 0, -16) as Vec<Meters>,

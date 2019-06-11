@@ -1,31 +1,30 @@
 
 import  { Map } from "immutable";
 
-import { Vec, vecToArray, addVectors, subtractVectors } from "./gamda/vectors";
+import { Vec, vecToArray, addVectors, vec, divideVector, subtractVectors } from "./gamda/vectors";
 import { Entity, EntityId, getEntity, EntityAdded } from "./gamda/entities";
 import { Soccer, Team } from "./soccer";
 import { BodyPart } from "./gamda/physics/body";
 import { Sphere, Segment } from "./gamda/physics/shape";
 import { Physical } from "./gamda/entitiesPhysics";
-import { GameEvents, game } from "./gamda/game";
+import { GameEvents, game, FIELD_POSITION_POINTED } from "./gamda/game";
 import { Character, CharacterSelected } from "./character";
 import { Wall } from "./wall";
 import { Ball } from "./ball";
-import { Application, Graphics, DisplayObject } from "pixi.js";
+import { Application, Graphics, DisplayObject, Text, Container } from "pixi.js";
 import { Meters } from "./gamda/physics/units";
-import { DivideUnits, Unit, mul, sub } from "uom-ts";
+import { DivideUnits, Unit, mul, sub, div, add } from "uom-ts";
 
 type Pixels = Unit<{px: 1}>;
 
 export interface View {
     app: Application,
-    viewPosition: [Pixels, Pixels],
+    viewPosition: Vec<Meters>,
     viewScale: DivideUnits<Pixels, Meters>,
     entitiesViews: Map<EntityId, DisplayObject>;
 }
 
 export const createView = async (): Promise<View> => {
-    console.log('view ok')
     const canvas = document.getElementById("canvas") as HTMLCanvasElement;
     const app = new Application({width: 256, height: 256, view: canvas, antialias: true, backgroundColor: 0xFFFFFF});
     app.renderer.view.style.position = "absolute";
@@ -36,12 +35,13 @@ export const createView = async (): Promise<View> => {
     await loadResources();
 
     const entitiesViews = Map<EntityId, DisplayObject>();
+    const viewScale = 15.0 as DivideUnits<Pixels, Meters>;
 
     return {
         app,
         entitiesViews,
-        viewPosition: [-app.view.width / 2.0 as Pixels, -app.view.height / 2.0 as Pixels],
-        viewScale: 15.0 as DivideUnits<Pixels, Meters>
+        viewPosition: vec(div(-app.view.width / 2.0 as Pixels, viewScale), 0, div(-app.view.height / 2.0 as Pixels, viewScale)) as Vec<Meters>,
+        viewScale
     };
 };
 
@@ -67,6 +67,7 @@ export const updateEntitiesViewPositions = (game: Soccer): Soccer => {
 const createCharacterView = (view: View, character: Character): DisplayObject => {
     const body = character.body;
     const sphereBody = body.parts[0] as BodyPart<Sphere>;
+    const characterContainer = new Container();
     const graphics = new Graphics();
     let color;
     if (character.teamAssign.team === Team.A) {
@@ -74,12 +75,16 @@ const createCharacterView = (view: View, character: Character): DisplayObject =>
     } else {
         color = 0x00FF00; 
     }
+    const idLabel = new Text(character.teamAssign.index.toString(), {fontFamily : 'Arial', fontSize: 16, fill : 0x000000, align : 'center'});
+    idLabel.position.set(-8, -30);
     graphics.lineStyle(5, color, 1);
     graphics.beginFill(0xFFFFFF);
     graphics.arc(0, 0, (sphereBody.shape.radius * view.viewScale) - 5/2, 0, 2*Math.PI);
     graphics.endFill();
-    graphics.position.set(...vecToViewCoords(body.position, view));
-    return graphics;
+    characterContainer.addChild(graphics);
+    characterContainer.addChild(idLabel);
+    characterContainer.position.set(...vecToViewCoords(body.position, view));
+    return characterContainer;
 };
 
 const createBallView = (view: View, ball: Ball): DisplayObject => {
@@ -133,9 +138,15 @@ export const addEntityViewToView = (entity: Entity<Physical & unknown>, view: Vi
 };
 
 const vecToViewCoords = (vec: Vec<Meters>, view: View): Pixels[] => {
-    const [x, _, z] = vecToArray(vec);
-    const [scaledX, scaledZ] = [mul(x, view.viewScale), mul(z, view.viewScale)]
-    return [sub(scaledX, view.viewPosition[0]), sub(view.app.view.height as Pixels, sub(scaledZ, view.viewPosition[1]))];
+    const relativePosition = subtractVectors(vec, view.viewPosition);
+    const [x, _, z] = vecToArray(relativePosition);
+    return [mul(x, view.viewScale), sub(view.app.view.height as Pixels, mul(z, view.viewScale))];
+};
+
+const viewCoordsToVec = (coords: [Pixels, Pixels], view: View): Vec<Meters> => {
+    const positionOnScreen = vec(coords[0], 0, sub(view.app.view.height as Pixels, coords[1])) as Vec<Pixels>;
+    const gamePositionRelativeToView: Vec<Meters> = divideVector(view.viewScale, positionOnScreen);
+    return addVectors(view.viewPosition, gamePositionRelativeToView);
 }
 
 export const addEntityView = (event: EntityAdded) => (game: Soccer): [Soccer, GameEvents] => [{
@@ -145,4 +156,15 @@ export const addEntityView = (event: EntityAdded) => (game: Soccer): [Soccer, Ga
 
 export const changeSelectedViewCharacter = (event: CharacterSelected) => (game: Soccer): [Soccer, GameEvents] => {
     return [game, []];
+};
+
+export const checkWhatWasClicked = (mouseEvent: MouseEvent) => (game: Soccer): [Soccer, GameEvents] => {
+    console.log(mouseEvent.clientX, mouseEvent.clientY);
+    const gamePosition = viewCoordsToVec([mouseEvent.clientX as Pixels, mouseEvent.clientY as Pixels], game.view);
+    console.log(gamePosition)
+    const fieldPositionPointedEvent = {
+        type: FIELD_POSITION_POINTED,
+        position: gamePosition,
+    };
+    return [game, [fieldPositionPointedEvent]];
 };
