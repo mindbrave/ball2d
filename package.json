@@ -35,7 +35,7 @@
     "babylonjs-materials": "^3.3.0",
     "earcut": "^2.1.5",
     "immutable": "^4.0.0-rc.12",
-    "mathjs": "^5.8.0",
+    "mathjs": "^7.5.1",
     "pixi.js": "^4.8.4",
     "ramda": "^0.26.1",
     "remeda": "0.0.7",
